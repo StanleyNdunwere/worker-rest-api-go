@@ -97,14 +97,12 @@ func SpinWorkerForProcessingVerification(workersCount int, verificationStore *ma
 		createJobs := make(chan bool)
 		go func(createJobs chan bool) {
 			for key := range *verificationStore {
-				fmt.Println("the key ", key)
 				verificationChannel <- key
 			}
 			createJobs <- true
-			fmt.Println("called crated jobs")
 		}(createJobs)
 
-		fmt.Println("Timer recreated at ", t)
+		fmt.Println("Timer for processing verification recreated at ", t)
 		spun = 0
 		for spun < workersCount {
 			go func(spun int, channel chan string) {
