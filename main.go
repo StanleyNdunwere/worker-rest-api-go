@@ -9,23 +9,6 @@ import (
 	"github.com/savsgio/gotils/uuid"
 )
 
-// Create a REST endpoint that creates users with IDs as counts (i.e  user1 :1  user2 :2 user3 :3).
-// Users should all have a balance of 1000 once created
-// Users should go through verification & should be put in a verification queue
-// Verification should be processed periodically by X amount of workers (goroutines) that are spun up in X amount of time e.g every 30s
-// Create an endpoint that creates transactions taking in sender userID, receiver UserID & amount to send
-// The transactions should be put in a queue that will be processed
-// Transaction should be processed periodically by X amount of workers (goroutines) that are spun up in X amount of time e.g every 30s
-// Transactions should only be processed for verified users - If user is unverified, user should be pushed to the verification queue and verified
-// Create an endpoint that returns all users and their balances and verification status
-// BONUS: Figure out a way that user will not be verified even if pushed to the verification queue.
-//
-// User
-// ID
-// Name
-// Balance
-// VerificationStatus [true / false]
-
 var userStore map[string]*User
 var verificationStore map[string]Empty
 var transactionStore map[string]*TransactionReq
