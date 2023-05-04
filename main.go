@@ -51,10 +51,6 @@ func main() {
 		}
 		userStore[newUser.ID] = &newUser
 		verificationStore[newUser.ID] = Empty{}
-		fmt.Println(verificationStore)
-		for _, val := range userStore {
-			fmt.Println("the user verification value: ", *val)
-		}
 		return c.JSON(newUser)
 	})
 
@@ -70,10 +66,6 @@ func main() {
 		}
 
 		transactionStore[generateTransactionId(transactionRequest.SenderId, transactionRequest.ReceiverId)] = &transactionRequest
-
-		for _, val := range transactionStore {
-			fmt.Println("the transaction value: ", val)
-		}
 
 		return c.JSON(ResponseBody{
 			Status: "success",
@@ -165,38 +157,42 @@ func SpinWorkersForProcessingTransactions(
 		for spun < workersCount {
 			go func(spun int, channel chan TransactionReq) {
 				fmt.Printf("Go rountine started for transaction processing: %v\n\n", spun+1)
+				select {
+				case request, present := <-channel:
+					if present {
+						delete(*transactionStore, generateTransactionId(request.SenderId, request.ReceiverId))
+						sender, senderOk := (*userStore)[request.SenderId]
+						receiver, receiverOk := (*userStore)[request.ReceiverId]
 
-				request := <-channel
-				delete(*transactionStore, generateTransactionId(request.SenderId, request.ReceiverId))
-				sender, senderOk := (*userStore)[request.SenderId]
-				receiver, receiverOk := (*userStore)[request.ReceiverId]
+						if !senderOk || !receiverOk {
+							fmt.Println("sender or receiver does not exist in records...")
+							return
+						}
+						if !receiver.VerificationStatus {
+							(*verificationStore)[receiver.ID] = Empty{}
+							fmt.Println("receiver verification status is false...")
+							return
+						}
+						if !sender.VerificationStatus {
+							(*verificationStore)[sender.ID] = Empty{}
+							fmt.Println("sender verification status is false...")
+							return
+						}
 
-				if !senderOk || !receiverOk {
-					fmt.Println("sender or receiver does not exist in records... deleting")
-					delete(*transactionStore, generateTransactionId(request.SenderId, request.ReceiverId))
-					return
+						if (sender.Balance - request.Amount) >= 0 {
+							sender.Balance -= request.Amount
+							receiver.Balance += request.Amount
+						}
+						fmt.Println("processing done ... ")
+						return
+					} else {
+						fmt.Println("Channel is terminated")
+						return
+					}
+				default:
+					fmt.Println("Channel is empty")
+					<-createTransJob
 				}
-				if !receiver.VerificationStatus {
-					(*verificationStore)[receiver.ID] = Empty{}
-					fmt.Println("receiver verification status is false... deleting")
-					delete(*transactionStore, generateTransactionId(request.SenderId, request.ReceiverId))
-					return
-				}
-				if !sender.VerificationStatus {
-					(*verificationStore)[sender.ID] = Empty{}
-					fmt.Println("sender verification status is false... deleting")
-					delete(*transactionStore, generateTransactionId(request.SenderId, request.ReceiverId))
-					return
-				}
-
-				if (sender.Balance - request.Amount) >= 0 {
-					sender.Balance -= request.Amount
-					receiver.Balance += request.Amount
-				}
-				fmt.Println("processing done ... deleting")
-				delete(*transactionStore, generateTransactionId(request.SenderId, request.ReceiverId))
-				return
-
 			}(spun, transactionChannel)
 			spun += 1
 		}
